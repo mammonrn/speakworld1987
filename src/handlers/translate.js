@@ -2,6 +2,7 @@
 
 const path = require('path');
 
+const { promptFor } = require('../../config/whisper-vocabulary');
 const { SOURCE_LANGUAGE, languageName, isSameLanguage } = require('../languages');
 const { getLanguage } = require('../store/language-store');
 const { transcribe } = require('../services/whisper');
@@ -89,7 +90,8 @@ function register(bot) {
     try {
       await ctx.sendChatAction('typing');
       const { buffer, filename } = await downloadVoice(ctx, ctx.message.voice.file_id);
-      const text = await transcribe(buffer, filename);
+      // ใบ้เฉพาะคำศัพท์ของภาษาปลายทางที่แชทนี้ตั้งไว้
+      const text = await transcribe(buffer, filename, promptFor(targetLanguage));
       await translateAndReply(ctx, text, targetLanguage, true);
     } catch (err) {
       console.error('แปลข้อความเสียงไม่สำเร็จ:', err);

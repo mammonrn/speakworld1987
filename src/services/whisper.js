@@ -14,9 +14,10 @@ const TIMEOUT_MS = 60000;
  *
  * @param {Buffer} audio ไฟล์เสียงจาก Telegram
  * @param {string} [filename] ชื่อไฟล์พร้อมนามสกุลที่ Whisper รองรับ
+ * @param {string} [prompt] คำศัพท์เฉพาะช่วยใบ้ให้ถอดชื่อเฉพาะได้แม่นขึ้น
  * @returns {Promise<string>} ข้อความที่ถอดได้
  */
-async function transcribe(audio, filename = 'voice.ogg') {
+async function transcribe(audio, filename = 'voice.ogg', prompt = '') {
   if (!openaiApiKey) {
     throw new Error('ไม่ได้ตั้งค่า OPENAI_API_KEY');
   }
@@ -24,6 +25,10 @@ async function transcribe(audio, filename = 'voice.ogg') {
   const form = new FormData();
   form.append('file', new Blob([audio]), filename);
   form.append('model', MODEL);
+
+  if (prompt) {
+    form.append('prompt', prompt);
+  }
 
   const response = await fetch(TRANSCRIPTION_URL, {
     method: 'POST',
