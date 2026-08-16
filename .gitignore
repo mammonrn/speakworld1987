@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# runtime / temp
+tmp/
+temp/
+*.ogg
+*.oga
+*.mp3
+*.wav
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
