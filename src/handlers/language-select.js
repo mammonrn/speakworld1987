@@ -26,7 +26,7 @@ function languageKeyboard() {
  * @param {import('telegraf').Telegraf} bot
  */
 function register(bot) {
-  bot.command('changelang', async (ctx) => {
+  bot.command('cl', async (ctx) => {
     const current = getLanguage(ctx.chat.id);
     const prefix = current ? `ตอนนี้ตั้งไว้เป็น${languageName(current)}\n` : '';
     await ctx.reply(prefix + ASK_MESSAGE, languageKeyboard());
@@ -45,7 +45,7 @@ function register(bot) {
     await ctx.answerCbQuery(`เลือก${languageName(language.code)}แล้ว`);
     await ctx.editMessageText(
       `ตั้งภาษาปลายทางเป็น ${language.label} เรียบร้อย\n` +
-        'ส่งข้อความเสียงภาษาไทยเข้ามาได้เลย (เปลี่ยนภายหลังด้วย /changelang)'
+        'ส่งข้อความเสียงภาษาไทยเข้ามาได้เลย (เปลี่ยนภายหลังด้วย /cl)'
     );
   });
 
