@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+
 require('dotenv').config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -29,8 +31,27 @@ if (!openaiApiKey) {
   console.warn('คำเตือน: ไม่พบ OPENAI_API_KEY — การแปลจีน/อังกฤษจะใช้งานไม่ได้');
 }
 
+/**
+ * Telegram ID ของผู้ดูแลระบบ — คนเดียวที่อนุมัติผู้ใช้และดูรายงานค่าใช้จ่ายได้
+ *
+ * ถ้าไม่ตั้งค่าไว้ จะไม่มีใครอนุมัติใครได้เลย บอทก็จะเงียบกับทุกคน
+ * จึงเตือนให้ชัดตั้งแต่ตอนบูตว่าบอทใช้งานไม่ได้ทั้งตัว ไม่ใช่แค่บางฟีเจอร์
+ */
+const superAdminId = Number(process.env.SUPER_ADMIN_ID) || null;
+
+if (!superAdminId) {
+  console.warn(
+    'คำเตือน: ไม่พบ SUPER_ADMIN_ID — จะไม่มีใครอนุมัติผู้ใช้ได้ บอทจะไม่ตอบใครเลย'
+  );
+}
+
+/** ที่เก็บไฟล์ข้อมูลระหว่างรัน ตั้ง DATA_DIR ทับได้เวลาย้ายที่เก็บหรือตอนทดสอบ */
+const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+
 module.exports = {
   token,
   googleApiKey,
   openaiApiKey,
+  superAdminId,
+  dataDir,
 };

@@ -5,8 +5,10 @@ const { getLanguage } = require('../store/language-store');
 const { transcribe } = require('../services/googleSpeech');
 const { translateText, detectLanguage, providerNameFor } = require('../services/translate');
 const { annotate } = require('../services/pinyin');
+const { recordSpeech, recordTranslation } = require('../services/usage-tracker');
 const { withRetry } = require('../services/http');
 const { startTyping } = require('../services/typing');
+const { displayName } = require('../users');
 
 const ERROR_MESSAGE = 'ขออภัย เกิดข้อผิดพลาดในการแปล ลองใหม่อีกครั้ง';
 const DOWNLOAD_TIMEOUT_MS = 30000;
@@ -75,25 +77,29 @@ function logDetected(ctx, detected, fromVoice, targetLanguage) {
 async function translateAndReply(ctx, text, targetLanguage, detected, fromVoice) {
   logDetected(ctx, detected, fromVoice, targetLanguage);
 
+  /** แปลหนึ่งครั้งพร้อมจดปริมาณที่ใช้ไว้คิดค่าใช้จ่ายรายเดือน */
+  const translateAndCount = async (source, target) => {
+    const translated = await translateText(text, { source, target, via: targetLanguage });
+    recordTranslation(
+      ctx.chat.id,
+      text.length,
+      providerNameFor(targetLanguage),
+      displayName(ctx.from)
+    );
+    return translated;
+  };
+
   if (isSameLanguage(detected, SOURCE_LANGUAGE)) {
     if (!fromVoice) return;
 
-    const translated = await translateText(text, {
-      source: SOURCE_LANGUAGE,
-      target: targetLanguage,
-      via: targetLanguage,
-    });
+    const translated = await translateAndCount(SOURCE_LANGUAGE, targetLanguage);
     // ภาษาจีนได้พินอินกำกับต่อท้าย ภาษาอื่นได้ข้อความเดิมกลับมาเฉยๆ
     await ctx.reply(`${annotate(translated, targetLanguage)}\nความหมาย: ${text}`);
     return;
   }
 
   if (isSameLanguage(detected, targetLanguage)) {
-    const thai = await translateText(text, {
-      source: targetLanguage,
-      target: SOURCE_LANGUAGE,
-      via: targetLanguage,
-    });
+    const thai = await translateAndCount(targetLanguage, SOURCE_LANGUAGE);
     // ข้อความพิมพ์มองเห็นต้นฉบับอยู่แล้ว จึงแสดงต้นฉบับเฉพาะกรณีที่มาจากเสียง
     await ctx.reply(fromVoice ? `${thai}\nต้นฉบับ: ${text}` : thai);
     return;
@@ -129,6 +135,8 @@ function register(bot) {
       const audio = await downloadVoice(ctx, ctx.message.voice.file_id);
       // ฟังทั้งภาษาไทยและภาษาปลายทางของแชท ผลที่ได้บอกทิศทางการแปลในตัว
       const { text, language } = await transcribe(audio, targetLanguage);
+      // คิดตามความยาวคลิปที่ Telegram แจ้งมา ไม่ใช่เวลาที่ใช้ประมวลผลจริง
+      recordSpeech(ctx.chat.id, ctx.message.voice.duration, displayName(ctx.from));
       await translateAndReply(ctx, text, targetLanguage, language, true);
     } catch (err) {
       console.error('แปลข้อความเสียงไม่สำเร็จ:', err);

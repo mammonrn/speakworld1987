@@ -1,10 +1,27 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 // ต้องตั้งค่าก่อนที่ไฟล์ทดสอบจะ require src/config เข้ามา ไม่งั้น config
 // จะไม่เจอ token แล้วสั่ง process.exit(1) ทำให้ชุดทดสอบตายทั้งไฟล์
 process.env.TELEGRAM_BOT_TOKEN ||= 'test-telegram-token';
 process.env.GOOGLE_API_KEY ||= 'test-google-key';
 process.env.OPENAI_API_KEY ||= 'test-openai-key';
+
+/** Telegram ID ของผู้ดูแลระบบที่ใช้ตลอดชุดทดสอบ */
+const SUPER_ADMIN_ID = 999001;
+process.env.SUPER_ADMIN_ID ||= String(SUPER_ADMIN_ID);
+
+// แต่ละไฟล์ทดสอบรันคนละโปรเซส จึงได้โฟลเดอร์ข้อมูลของตัวเอง ไม่ชนกันเอง
+// และไม่แตะ data/ ของเครื่องที่รันจริง
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'speakworld-test-'));
+process.env.DATA_DIR ||= DATA_DIR;
+
+process.on('exit', () => {
+  fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true });
+});
 
 /** ตอบกลับแบบย่อสำหรับ route ที่ไม่สนใจรายละเอียด */
 function jsonResponse(payload, status = 200) {
@@ -96,17 +113,43 @@ function stubModule(request, exports) {
  */
 function fakeBot() {
   const handlers = {};
+  const actions = [];
   const collect = (event, fn) => {
     (handlers[event] ||= []).push(fn);
   };
 
   return {
     handlers,
+    // action ทุกตัวพร้อม pattern เพื่อให้เทสต์เลือกเรียกตัวที่ตรงกับ callback data ได้
+    actions,
+    use: (fn) => collect('use', fn),
     on: (event, fn) => collect(event, fn),
     command: (name, fn) => collect(`command:${name}`, fn),
-    action: (_pattern, fn) => collect('action', fn),
+    action: (pattern, fn) => {
+      collect('action', fn);
+      actions.push({ pattern, fn });
+    },
     start: (fn) => collect('start', fn),
   };
+}
+
+/**
+ * หา action handler ที่ตรงกับ callback data แล้วเรียกให้ พร้อมเซ็ต ctx.match
+ *
+ * เลียนแบบวิธีที่ Telegraf จับคู่ callback data กับ pattern ที่ลงทะเบียนไว้
+ *
+ * @param {ReturnType<typeof fakeBot>} bot
+ * @param {string} data callback data ที่ผู้ใช้กด
+ * @param {object} ctx
+ */
+async function fireAction(bot, data, ctx) {
+  for (const { pattern, fn } of bot.actions) {
+    const match = typeof pattern === 'string' ? (pattern === data ? [data] : null) : data.match(pattern);
+    if (match) {
+      return fn({ ...ctx, match });
+    }
+  }
+  throw new Error(`ไม่มี action ที่รับ callback data "${data}"`);
 }
 
 /**
@@ -114,12 +157,13 @@ function fakeBot() {
  *
  * @param {{ voice?: boolean, text?: string, chatId?: number, fileUrl?: string }} options
  */
-function fakeCtx({ voice = false, text = '', chatId = 42, fileUrl } = {}) {
+function fakeCtx({ voice = false, text = '', chatId = 42, fileUrl, from } = {}) {
   const replies = [];
   const chatActions = [];
 
   return {
     chat: { id: chatId },
+    from: from || { id: chatId, first_name: 'ผู้ทดสอบ' },
     message: voice
       ? { message_id: 7, voice: { file_id: 'voice-file-id' } }
       : { message_id: 7, text },
@@ -179,10 +223,13 @@ function networkError(code = 'ECONNRESET') {
 }
 
 module.exports = {
+  SUPER_ADMIN_ID,
+  DATA_DIR,
   jsonResponse,
   mockFetch,
   stubModule,
   fakeBot,
+  fireAction,
   fakeCtx,
   audioResponse,
   speechResponse,
