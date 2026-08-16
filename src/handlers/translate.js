@@ -4,6 +4,7 @@ const { SOURCE_LANGUAGE, languageName, isSameLanguage } = require('../languages'
 const { getLanguage } = require('../store/language-store');
 const { transcribe } = require('../services/googleSpeech');
 const { translateText, detectLanguage, providerNameFor } = require('../services/translate');
+const { annotate } = require('../services/pinyin');
 const { withRetry } = require('../services/http');
 const { startTyping } = require('../services/typing');
 
@@ -82,7 +83,8 @@ async function translateAndReply(ctx, text, targetLanguage, detected, fromVoice)
       target: targetLanguage,
       via: targetLanguage,
     });
-    await ctx.reply(`${translated}\nความหมาย: ${text}`);
+    // ภาษาจีนได้พินอินกำกับต่อท้าย ภาษาอื่นได้ข้อความเดิมกลับมาเฉยๆ
+    await ctx.reply(`${annotate(translated, targetLanguage)}\nความหมาย: ${text}`);
     return;
   }
 

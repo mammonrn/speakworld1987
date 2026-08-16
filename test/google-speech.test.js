@@ -38,6 +38,7 @@ test('ภาษาหลักเป็นไทยเสมอ และภา�
     ['en', 'en-US'],
     ['zh-CN', 'cmn-Hans-CN'],
     ['my', 'my-MM'],
+    ['vi', 'vi-VN'],
   ];
 
   for (const [target, expected] of cases) {
@@ -89,6 +90,7 @@ test('ทิศทางขากลับ: รหัสของ Speech ถู�
     ['kk-kz', 'kk'],
     ['my-mm', 'my'],
     ['en-us', 'en'],
+    ['vi-vn', 'vi'],
   ];
 
   for (const [returned, expected] of cases) {

@@ -48,6 +48,13 @@ const TARGET_LANGUAGES = [
     englishName: 'Burmese',
     provider: 'google',
   },
+  {
+    code: 'vi',
+    label: '🇻🇳 เวียดนาม',
+    speechCode: 'vi-VN',
+    englishName: 'Vietnamese',
+    provider: 'google',
+  },
 ];
 
 /** subtag แรกแบบตัวพิมพ์เล็ก ใช้เทียบรหัสที่เขียนคนละรูปแบบ */

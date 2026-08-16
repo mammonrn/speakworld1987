@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "pinyin": "^4.0.0",
     "telegraf": "^4.16.3"
   },
   "license": "MIT"

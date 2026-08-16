@@ -1,5 +1,10 @@
 'use strict';
 
+const { TARGET_LANGUAGES, languageName } = require('../languages');
+
+// อ่านรายชื่อจากตารางภาษาโดยตรง เพิ่มภาษาใหม่แล้วข้อความต้อนรับตามทันเอง
+const LANGUAGE_LIST = TARGET_LANGUAGES.map((lang) => languageName(lang.code)).join(' / ');
+
 const WELCOME_MESSAGE = [
   'สวัสดีครับ 👋 ยินดีต้อนรับสู่ SpeakWorld',
   '',
@@ -9,7 +14,7 @@ const WELCOME_MESSAGE = [
   '',
   'คำสั่งที่ใช้ได้:',
   '• /start — แสดงข้อความนี้',
-  '• /cl — เปลี่ยนภาษาปลายทาง (คาซัค / อังกฤษ / จีน / พม่า)',
+  `• /cl — เปลี่ยนภาษาปลายทาง (${LANGUAGE_LIST})`,
   '',
   'ส่งข้อความเสียงมาได้เลย ครั้งแรกผมจะถามก่อนว่าจะแปลเป็นภาษาอะไร',
 ].join('\n');

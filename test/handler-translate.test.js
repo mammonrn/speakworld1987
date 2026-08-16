@@ -127,7 +127,9 @@ test('ขาไป OpenAI: เสียงภาษาไทยในแชท�
     routes: [[OPENAI_URL, () => openaiResponse('你好，最近好吗')]],
   });
 
-  assert.deepEqual(ctx.replies, ['你好，最近好吗\nความหมาย: สวัสดีครับ สบายดีไหม']);
+  assert.deepEqual(ctx.replies, [
+    '你好，最近好吗(Nǐ hǎo, zuì jìn hǎo ma)\nความหมาย: สวัสดีครับ สบายดีไหม',
+  ]);
   assert.equal(calls.some((call) => call.url.includes(OPENAI_URL)), true);
   assert.equal(
     calls.some((call) => call.url.includes(`${GOOGLE_URL}/language`)),
@@ -165,6 +167,107 @@ test('โครงสร้างข้อความตอบกลับเ�
   });
   assert.equal(google.ctx.replies[0], 'ကျေးဇူးတင်ပါတယ်\nความหมาย: ขอบคุณครับ');
   assert.equal(openai.ctx.replies[0], 'Thank you\nความหมาย: ขอบคุณครับ');
+});
+
+test('ขาไปภาษาจีน: มีพินอินกำกับในวงเล็บต่อท้ายคำแปล', async () => {
+  const { ctx } = await runVoice({
+    language: 'zh-CN',
+    transcript: 'สบายดีไหม',
+    spoken: 'th-TH',
+    routes: [[OPENAI_URL, () => openaiResponse('你好吗？')]],
+  });
+
+  assert.deepEqual(ctx.replies, ['你好吗？(Nǐ hǎo ma?)\nความหมาย: สบายดีไหม']);
+});
+
+test('ขากลับจากภาษาจีน: ไม่ใส่พินอิน เพราะผลลัพธ์เป็นภาษาไทย', async () => {
+  const { ctx } = await runVoice({
+    language: 'zh-CN',
+    transcript: '你好吗？',
+    spoken: 'cmn-Hans-CN',
+    routes: [[OPENAI_URL, () => openaiResponse('สบายดีไหม')]],
+  });
+
+  assert.deepEqual(ctx.replies, ['สบายดีไหม\nต้นฉบับ: 你好吗？']);
+  assert.doesNotMatch(ctx.replies[0], /\(/);
+});
+
+test('ข้อความพิมพ์ภาษาจีนที่แปลกลับเป็นไทย ก็ไม่มีพินอิน', async () => {
+  const { ctx } = await runText({
+    language: 'zh-CN',
+    text: '机场在哪里？',
+    detected: 'zh-CN',
+    routes: [[OPENAI_URL, () => openaiResponse('สนามบินอยู่ที่ไหน')]],
+  });
+
+  assert.deepEqual(ctx.replies, ['สนามบินอยู่ที่ไหน']);
+});
+
+test('ภาษาอื่นไม่ถูกต่อท้ายด้วยวงเล็บใดๆ', async () => {
+  for (const [language, translated] of [
+    ['kk', 'Сәлеметсіз бе'],
+    ['my', 'နေကောင်းလား'],
+    ['vi', 'Bạn khỏe không'],
+  ]) {
+    const { ctx } = await runVoice({
+      language,
+      transcript: 'สบายดีไหม',
+      spoken: 'th-TH',
+      routes: [[GOOGLE_URL, () => googleTranslateResponse(translated)]],
+    });
+
+    assert.deepEqual(ctx.replies, [`${translated}\nความหมาย: สบายดีไหม`]);
+  }
+});
+
+test('ขาไปเวียดนาม: แปลผ่าน Google และตอบโครงสร้างเดิม', async () => {
+  const { ctx, calls } = await runVoice({
+    language: 'vi',
+    transcript: 'สวัสดีครับ',
+    spoken: 'th-TH',
+    routes: [[GOOGLE_URL, () => googleTranslateResponse('Xin chào')]],
+  });
+
+  assert.deepEqual(ctx.replies, ['Xin chào\nความหมาย: สวัสดีครับ']);
+
+  const speechCall = calls.find((call) => call.url.includes(SPEECH_URL));
+  assert.deepEqual(speechCall.body.config.alternativeLanguageCodes, ['vi-VN']);
+
+  const translateCall = calls.find((call) => call.url.includes(GOOGLE_URL));
+  assert.deepEqual(translateCall.body, {
+    q: 'สวัสดีครับ',
+    source: 'th',
+    target: 'vi',
+    format: 'text',
+  });
+  assert.equal(calls.some((call) => call.url.includes(OPENAI_URL)), false);
+});
+
+test('ขากลับเวียดนาม: STT ตรวจเจอ vi-VN แล้วแปลกลับผ่าน Google', async () => {
+  const { ctx, calls } = await runVoice({
+    language: 'vi',
+    transcript: 'Sân bay ở đâu',
+    spoken: 'vi-VN',
+    routes: [[GOOGLE_URL, () => googleTranslateResponse('สนามบินอยู่ที่ไหน')]],
+  });
+
+  assert.deepEqual(ctx.replies, ['สนามบินอยู่ที่ไหน\nต้นฉบับ: Sân bay ở đâu']);
+
+  const translateCall = calls.find((call) => call.url.includes(GOOGLE_URL));
+  assert.equal(translateCall.body.source, 'vi');
+  assert.equal(translateCall.body.target, 'th');
+  assert.equal(calls.some((call) => call.url.includes(OPENAI_URL)), false);
+});
+
+test('ข้อความพิมพ์ภาษาเวียดนามถูกแปลกลับเป็นไทย', async () => {
+  const { ctx } = await runText({
+    language: 'vi',
+    text: 'Cảm ơn bạn',
+    detected: 'vi',
+    routes: [[`${GOOGLE_URL}/language/translate/v2`, () => googleTranslateResponse('ขอบคุณ')]],
+  });
+
+  assert.deepEqual(ctx.replies, ['ขอบคุณ']);
 });
 
 test('ขากลับ: เสียงภาษาปลายทางถูกแปลกลับเป็นไทยพร้อม "ต้นฉบับ:"', async () => {

@@ -31,8 +31,8 @@ function bothProviders(googleText = 'ผลจาก Google', openaiText = 'ผ�
   ]);
 }
 
-test('คาซัคและพม่าวิ่งไป Google Translate', async () => {
-  for (const via of ['kk', 'my']) {
+test('คาซัค พม่า และเวียดนามวิ่งไป Google Translate', async () => {
+  for (const via of ['kk', 'my', 'vi']) {
     const fetchMock = bothProviders();
 
     try {
@@ -82,15 +82,17 @@ test('ขากลับใช้ผู้ให้บริการเจ้�
     fetchMock.restore();
   }
 
-  const googleMock = bothProviders();
+  for (const via of ['kk', 'vi']) {
+    const googleMock = bothProviders();
 
-  try {
-    await translateText('Сәлем', { source: 'kk', target: 'th', via: 'kk' });
-    assert.match(googleMock.calls[0].url, /translation\.googleapis\.com/);
-    assert.equal(googleMock.calls[0].body.target, 'th');
-    assert.equal(googleMock.calls[0].body.source, 'kk');
-  } finally {
-    googleMock.restore();
+    try {
+      await translateText('ทักทาย', { source: via, target: 'th', via });
+      assert.match(googleMock.calls[0].url, /translation\.googleapis\.com/);
+      assert.equal(googleMock.calls[0].body.target, 'th');
+      assert.equal(googleMock.calls[0].body.source, via);
+    } finally {
+      googleMock.restore();
+    }
   }
 });
 
