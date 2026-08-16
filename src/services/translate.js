@@ -1,6 +1,7 @@
 'use strict';
 
 const { googleTranslateApiKey } = require('../config');
+const { withRetry } = require('./http');
 
 const BASE_URL = 'https://translation.googleapis.com/language/translate/v2';
 const TIMEOUT_MS = 15000;
@@ -28,14 +29,13 @@ async function callApi(path, body) {
     throw new Error('ไม่ได้ตั้งค่า GOOGLE_TRANSLATE_API_KEY');
   }
 
-  const response = await fetch(
-    `${BASE_URL}${path}?key=${encodeURIComponent(googleTranslateApiKey)}`,
-    {
+  const response = await withRetry(`Google Translate${path}`, () =>
+    fetch(`${BASE_URL}${path}?key=${encodeURIComponent(googleTranslateApiKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_MS),
-    }
+    })
   );
 
   if (!response.ok) {

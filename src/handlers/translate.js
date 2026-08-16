@@ -7,6 +7,8 @@ const { SOURCE_LANGUAGE, languageName, isSameLanguage } = require('../languages'
 const { getLanguage } = require('../store/language-store');
 const { transcribe } = require('../services/whisper');
 const { translateText, detectLanguage } = require('../services/translate');
+const { withRetry } = require('../services/http');
+const { startTyping } = require('../services/typing');
 
 const ERROR_MESSAGE = 'ขออภัย เกิดข้อผิดพลาดในการแปล ลองใหม่อีกครั้ง';
 const DOWNLOAD_TIMEOUT_MS = 30000;
@@ -19,9 +21,9 @@ const DOWNLOAD_TIMEOUT_MS = 30000;
  */
 async function downloadVoice(ctx, fileId) {
   const link = await ctx.telegram.getFileLink(fileId);
-  const response = await fetch(link.href, {
-    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
-  });
+  const response = await withRetry('ดาวน์โหลดไฟล์เสียง', () =>
+    fetch(link.href, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
+  );
 
   if (!response.ok) {
     throw new Error(`ดาวน์โหลดไฟล์เสียงไม่สำเร็จ (${response.status})`);
@@ -87,8 +89,10 @@ function register(bot) {
     const targetLanguage = getLanguage(ctx.chat.id);
     if (!targetLanguage) return;
 
+    // ขึ้น "กำลังพิมพ์" ทันทีและคาไว้จนจบ ผู้ใช้จะได้ไม่เห็นแชทเงียบระหว่างรอ
+    const stopTyping = startTyping(ctx);
+
     try {
-      await ctx.sendChatAction('typing');
       const { buffer, filename } = await downloadVoice(ctx, ctx.message.voice.file_id);
       // ใบ้เฉพาะคำศัพท์ของภาษาปลายทางที่แชทนี้ตั้งไว้
       const text = await transcribe(buffer, filename, promptFor(targetLanguage));
@@ -96,6 +100,8 @@ function register(bot) {
     } catch (err) {
       console.error('แปลข้อความเสียงไม่สำเร็จ:', err);
       await ctx.reply(ERROR_MESSAGE);
+    } finally {
+      stopTyping();
     }
   });
 

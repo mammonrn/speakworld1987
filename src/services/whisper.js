@@ -1,10 +1,12 @@
 'use strict';
 
 const { openaiApiKey } = require('../config');
+const { withRetry } = require('./http');
 
 const TRANSCRIPTION_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const MODEL = 'whisper-1';
-const TIMEOUT_MS = 60000;
+// เสียงยาวๆ บวกกับเน็ตฝั่ง VPS ที่ช้าเป็นบางจังหวะ ทำให้ 60 วิเฉียดเกินไป
+const TIMEOUT_MS = 75000;
 
 /**
  * ถอดเสียงเป็นข้อความด้วย OpenAI Whisper
@@ -22,19 +24,22 @@ async function transcribe(audio, filename = 'voice.ogg', prompt = '') {
     throw new Error('ไม่ได้ตั้งค่า OPENAI_API_KEY');
   }
 
-  const form = new FormData();
-  form.append('file', new Blob([audio]), filename);
-  form.append('model', MODEL);
+  // ประกอบ form ใหม่ทุกครั้งที่ยิง เพราะ body ที่ถูกอ่านไปแล้วใช้ซ้ำไม่ได้
+  const response = await withRetry('Whisper', () => {
+    const form = new FormData();
+    form.append('file', new Blob([audio]), filename);
+    form.append('model', MODEL);
 
-  if (prompt) {
-    form.append('prompt', prompt);
-  }
+    if (prompt) {
+      form.append('prompt', prompt);
+    }
 
-  const response = await fetch(TRANSCRIPTION_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${openaiApiKey}` },
-    body: form,
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    return fetch(TRANSCRIPTION_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openaiApiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
   });
 
   if (!response.ok) {
