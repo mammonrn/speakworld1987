@@ -1,11 +1,12 @@
 'use strict';
 
 const start = require('./start');
-const voice = require('./voice');
+const languageSelect = require('./language-select');
+const translate = require('./translate');
 
-// handler ที่ยังไม่ได้พัฒนา (language-select, translate)
-// จะถูกเพิ่มเข้ามาในลิสต์นี้เมื่อพร้อมใช้งาน
-const handlers = [start, voice];
+// ลำดับสำคัญ: language-select ทำหน้าที่เป็นด่านตรวจภาษาปลายทาง
+// ก่อนปล่อยข้อความเสียงต่อให้ translate
+const handlers = [start, languageSelect, translate];
 
 /**
  * ลงทะเบียน handler ทั้งหมดเข้ากับ bot

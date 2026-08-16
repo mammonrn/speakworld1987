@@ -6,6 +6,9 @@ node_modules/
 .env.*
 !.env.example
 
+# ข้อมูล runtime (ภาษาที่แต่ละแชทเลือกไว้)
+data/
+
 # logs
 *.log
 npm-debug.log*
