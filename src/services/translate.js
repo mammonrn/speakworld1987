@@ -47,11 +47,15 @@ async function callApi(path, body) {
 }
 
 /**
- * แปลข้อความไปยังภาษาปลายทาง
+ * แปลข้อความไปยังภาษาปลายทาง พร้อมบอกภาษาต้นทางที่ Google ตรวจได้
+ *
+ * เมื่อไม่ระบุ source Google จะตรวจภาษาให้เองและคืน detectedSourceLanguage
+ * มาในผลลัพธ์เดียวกัน จึงไม่ต้องยิง detect endpoint แยกอีกคำขอ
+ *
  * @param {string} text
- * @param {string} target รหัสภาษาปลายทาง เช่น 'kk', 'en', 'zh-CN', 'my'
- * @param {string} [source] รหัสภาษาต้นทาง ปล่อยว่างให้ Google เดาเอง
- * @returns {Promise<string>}
+ * @param {string} target รหัสภาษาปลายทาง เช่น 'th', 'kk', 'zh-CN'
+ * @param {string} [source] ระบุเมื่อรู้ภาษาต้นทางแน่แล้ว ปล่อยว่างให้ Google ตรวจเอง
+ * @returns {Promise<{ text: string, detected: string }>}
  */
 async function translateText(text, target, source) {
   const payload = { q: text, target, format: 'text' };
@@ -60,29 +64,17 @@ async function translateText(text, target, source) {
   }
 
   const result = await callApi('', payload);
-  const translated = result?.data?.translations?.[0]?.translatedText;
+  const translation = result?.data?.translations?.[0];
 
-  if (typeof translated !== 'string') {
+  if (typeof translation?.translatedText !== 'string') {
     throw new Error('Google Translate ไม่คืนผลการแปล');
   }
 
-  return decodeEntities(translated);
+  return {
+    text: decodeEntities(translation.translatedText),
+    // ระบุ source ไปเองเมื่อไหร่ Google จะไม่ส่ง detectedSourceLanguage กลับมา
+    detected: translation.detectedSourceLanguage || source || '',
+  };
 }
 
-/**
- * ตรวจภาษาของข้อความด้วย detect-language endpoint
- * @param {string} text
- * @returns {Promise<string>} รหัสภาษาที่ตรวจพบ เช่น 'th'
- */
-async function detectLanguage(text) {
-  const result = await callApi('/detect', { q: text });
-  const language = result?.data?.detections?.[0]?.[0]?.language;
-
-  if (typeof language !== 'string') {
-    throw new Error('Google Translate ไม่คืนผลการตรวจภาษา');
-  }
-
-  return language;
-}
-
-module.exports = { translateText, detectLanguage };
+module.exports = { translateText };

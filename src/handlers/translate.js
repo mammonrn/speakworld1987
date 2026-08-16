@@ -6,7 +6,7 @@ const { promptFor } = require('../../config/whisper-vocabulary');
 const { SOURCE_LANGUAGE, languageName, isSameLanguage } = require('../languages');
 const { getLanguage } = require('../store/language-store');
 const { transcribe } = require('../services/whisper');
-const { translateText, detectLanguage } = require('../services/translate');
+const { translateText } = require('../services/translate');
 const { withRetry } = require('../services/http');
 const { startTyping } = require('../services/typing');
 
@@ -37,6 +37,25 @@ async function downloadVoice(ctx, fileId) {
 }
 
 /**
+ * บันทึกภาษาที่ตรวจได้ลง log
+ *
+ * ผลตรวจภาษาไม่ได้มาจากคำขอของตัวเองอีกแล้ว แต่แฝงมากับผลการแปล
+ * เวลาไล่ปัญหาจึงต้องเห็นว่าคำขอแรกยิงไปทางไหนและ Google ตอบว่าเป็นภาษาอะไร
+ *
+ * @param {import('telegraf').Context} ctx
+ * @param {string} detected ภาษาที่ Google ตรวจได้
+ * @param {boolean} fromVoice ข้อความมาจากเสียงหรือไม่
+ * @param {string} guess ภาษาปลายทางที่เดาไปในคำขอแรก
+ */
+function logDetected(ctx, detected, fromVoice, guess) {
+  const source = fromVoice ? 'เสียง' : 'ข้อความพิมพ์';
+  console.log(
+    `[แชท ${ctx.chat.id}] ${source}: ตรวจพบภาษา ${detected || 'ไม่ทราบ'} ` +
+      `(คำขอแรกแปลไป ${guess})`
+  );
+}
+
+/**
  * แปลข้อความตามทิศทางที่ตรวจได้ แล้วตอบกลับ
  *
  * - ภาษาปลายทาง → แปลกลับเป็นไทยอัตโนมัติ (ทั้งข้อความพิมพ์และข้อความเสียง)
@@ -45,28 +64,39 @@ async function downloadVoice(ctx, fileId) {
  * ข้อความ "พิมพ์" ภาษาไทยจะถูกปล่อยผ่านเงียบๆ ไม่เช่นนั้นบอทจะตอบแทรก
  * ทุกประโยคที่คนไทยคุยกันในแชท
  *
+ * Google ตรวจภาษาให้พร้อมกับการแปลในคำขอเดียวอยู่แล้ว แต่เราต้องเลือกภาษา
+ * ปลายทางก่อนจะรู้ผลตรวจ จึงเดาจากเส้นทางที่ข้อความเข้ามา:
+ * ข้อความเสียงมักเป็นคนไทยพูด ส่วนข้อความพิมพ์ที่เราสนใจคือฝั่งตรงข้ามตอบกลับ
+ * ถ้าเดาถูก (เกือบทุกครั้ง) จบใน 1 คำขอ ถ้าเดาผิดค่อยยิงอีกคำขอเพื่อแปลอีกทาง
+ * ซึ่งเท่ากับจำนวนคำขอแบบเดิมที่ต้องยิง detect ก่อนเสมอ
+ *
  * @param {import('telegraf').Context} ctx
  * @param {string} text ข้อความต้นทาง (พิมพ์เข้ามา หรือได้จาก Whisper)
  * @param {string} targetLanguage รหัสภาษาปลายทางของแชทนี้
  * @param {boolean} fromVoice ข้อความนี้มาจากเสียงหรือไม่
  */
 async function translateAndReply(ctx, text, targetLanguage, fromVoice) {
-  const detected = await detectLanguage(text);
+  const guess = fromVoice ? targetLanguage : SOURCE_LANGUAGE;
+  const first = await translateText(text, guess);
+  const detected = first.detected;
+
+  logDetected(ctx, detected, fromVoice, guess);
+
+  if (isSameLanguage(detected, SOURCE_LANGUAGE) && fromVoice) {
+    // เดาถูก: ผลที่ได้คือภาษาปลายทางที่ต้องการอยู่แล้ว
+    await ctx.reply(`${first.text}\nความหมาย: ${text}`);
+    return;
+  }
 
   if (isSameLanguage(detected, targetLanguage)) {
-    const thai = await translateText(text, SOURCE_LANGUAGE);
+    // ข้อความพิมพ์เดาถูกตั้งแต่คำขอแรก ส่วนข้อความเสียงต้องแปลกลับอีกทาง
+    const thai = fromVoice ? await translateText(text, SOURCE_LANGUAGE, detected) : first;
     // ข้อความพิมพ์มองเห็นต้นฉบับอยู่แล้ว จึงแสดงต้นฉบับเฉพาะกรณีที่มาจากเสียง
-    await ctx.reply(fromVoice ? `${thai}\nต้นฉบับ: ${text}` : thai);
+    await ctx.reply(fromVoice ? `${thai.text}\nต้นฉบับ: ${text}` : thai.text);
     return;
   }
 
   if (!fromVoice) {
-    return;
-  }
-
-  if (isSameLanguage(detected, SOURCE_LANGUAGE)) {
-    const translated = await translateText(text, targetLanguage, SOURCE_LANGUAGE);
-    await ctx.reply(`${translated}\nความหมาย: ${text}`);
     return;
   }
 
