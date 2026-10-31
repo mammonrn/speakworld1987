@@ -8,6 +8,19 @@ const { getLanguage, setLanguage } = require('../store/language-store');
 const CALLBACK_PREFIX = 'lang';
 const ASK_MESSAGE = 'ต้องการให้แปลเป็นภาษาอะไรครับ เลือกได้เลย 👇';
 
+/**
+ * คำสั่งลัดเลือกภาษาจากปุ่ม Menu (ชื่อคำสั่ง a-z/0-9/_ เท่านั้น) → รหัสภาษาภายในในตาราง TARGET_LANGUAGES
+ * ใช้ตรรกะเดียวกับปุ่มใน /cl (setLanguage ของ store เดียวกัน) · เรียงตามที่ใช้บ่อย เมนูใน src/menu.js ใช้ลำดับนี้
+ */
+const QUICK_LANGUAGE_COMMANDS = [
+  { command: 'hk', code: 'yue' },
+  { command: 'zh', code: 'zh-CN' },
+  { command: 'en', code: 'en' },
+  { command: 'kk', code: 'kk' },
+  { command: 'my', code: 'my' },
+  { command: 'vi', code: 'vi' },
+];
+
 /** ปุ่มเลือกภาษาแบบ 2 คอลัมน์ */
 function languageKeyboard() {
   const buttons = TARGET_LANGUAGES.map((lang) =>
@@ -31,6 +44,14 @@ function register(bot) {
     const prefix = current ? `ตอนนี้ตั้งไว้เป็น${languageName(current)}\n` : '';
     await ctx.reply(prefix + ASK_MESSAGE, languageKeyboard());
   });
+
+  for (const { command, code } of QUICK_LANGUAGE_COMMANDS) {
+    bot.command(command, async (ctx) => {
+      const language = findLanguage(code);
+      await setLanguage(ctx.chat.id, language.code);
+      await ctx.reply(`✅ ตั้งเป็น ${language.label.replace(/^\S+\s*/, '')} แล้ว\nส่งข้อความเสียงภาษาไทยเข้ามาได้เลย`);
+    });
+  }
 
   bot.action(new RegExp(`^${CALLBACK_PREFIX}:(.+)$`), async (ctx) => {
     const code = ctx.match[1];
@@ -58,4 +79,4 @@ function register(bot) {
   });
 }
 
-module.exports = { register, languageKeyboard, ASK_MESSAGE };
+module.exports = { register, languageKeyboard, ASK_MESSAGE, QUICK_LANGUAGE_COMMANDS };

@@ -7,9 +7,19 @@
  * ปุ่มของผู้ดูแล (อนุมัติ/ถอนสิทธิ์/ค่าใช้จ่าย) ใช้ปุ่ม inline ไม่มีคำสั่งพิมพ์ จึงไม่มีเมนูเฉพาะแอดมิน
  * คำอธิบายสั้นไม่เกิน 40 ตัวอักษร
  */
+const { findLanguage } = require('./languages');
+const { QUICK_LANGUAGE_COMMANDS } = require('./handlers/language-select');
+
+/** คำอธิบายเมนูภาษา = ธงชาติ + ชื่อภาษาไทย (ตัดมาจาก label ในตาราง TARGET_LANGUAGES) */
+const LANGUAGE_MENU = QUICK_LANGUAGE_COMMANDS.map(({ command, code }) => ({
+  command,
+  description: findLanguage(code).label,
+}));
+
 const BOT_COMMANDS = [
+  ...LANGUAGE_MENU,
+  { command: 'cl', description: 'เลือกภาษาด้วยปุ่ม' },
   { command: 'start', description: 'วิธีใช้บอท' },
-  { command: 'cl', description: 'เลือกภาษาปลายทางที่จะแปล' },
 ];
 
 /**
