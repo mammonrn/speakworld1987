@@ -82,6 +82,10 @@ function logDetected(ctx, detected, fromVoice, targetLanguage) {
  * @param {boolean} fromVoice ข้อความนี้มาจากเสียงหรือไม่
  */
 async function translateAndReply(ctx, text, targetLanguage, detected, fromVoice) {
+  // Google ตรวจกวางตุ้งที่พิมพ์เป็นตัวเต็มได้แค่ 'zh' / 'zh-TW' — แชทที่ตั้งกวางตุ้งถือเป็นภาษาปลายทาง
+  if (isSameLanguage(targetLanguage, 'yue') && isSameLanguage(detected, 'zh')) {
+    detected = 'yue';
+  }
   logDetected(ctx, detected, fromVoice, targetLanguage);
 
   /** แปลหนึ่งครั้งพร้อมจดปริมาณที่ใช้ไว้คิดค่าใช้จ่ายรายเดือน */
