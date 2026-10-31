@@ -32,7 +32,8 @@ test('ปุ่มเลือกภาษามีครบทุกภาษ�
 
   assert.deepEqual(labels, TARGET_LANGUAGES.map((lang) => lang.label));
   assert.ok(labels.includes('🇻🇳 เวียดนาม'));
-  assert.equal(labels.length, 5);
+  assert.ok(labels.includes('🇭🇰 กวางตุ้ง (ฮ่องกง)'));
+  assert.equal(labels.length, 6);
 });
 
 test('ปุ่มเวียดนามส่ง callback ด้วยรหัส vi', () => {

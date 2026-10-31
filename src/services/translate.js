@@ -28,11 +28,7 @@ const openaiWithFallback = {
       return await openaiTranslate.translate(text, languages);
     } catch (first) {
       console.error('OpenAI แปลไม่สำเร็จ ลอง DeepSeek:', reasonOf(first));
-      if (!deepseekTranslate.hasKey()) {
-        const err = new Error(`OpenAI: ${reasonOf(first)}`);
-        err.reason = err.message;
-        throw err;
-      }
+      if (!deepseekTranslate.hasKey()) throw first;
       try {
         return await deepseekTranslate.translate(text, languages);
       } catch (second) {
