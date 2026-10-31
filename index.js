@@ -4,6 +4,7 @@ const { Telegraf } = require('telegraf');
 
 const { token } = require('./src/config');
 const { registerHandlers } = require('./src/handlers');
+const { registerMenu } = require('./src/menu');
 
 const bot = new Telegraf(token);
 
@@ -14,7 +15,10 @@ bot.catch((err, ctx) => {
 });
 
 bot
-  .launch(() => console.log('บอทเริ่มทำงานแล้ว (long polling)'))
+  .launch(() => {
+    console.log('บอทเริ่มทำงานแล้ว (long polling)');
+    registerMenu(bot.telegram);
+  })
   .catch((err) => {
     console.error('เริ่มบอทไม่สำเร็จ:', err);
     process.exit(1);
