@@ -3,10 +3,50 @@
 const { findLanguage } = require('../languages');
 const googleTranslate = require('./google-translate');
 const openaiTranslate = require('./openai-translate');
+const deepseekTranslate = require('./deepseek-translate');
+
+/**
+ * สาเหตุล้มแบบย่อ (ภาษาไทย) ไว้บอกผู้ใช้ — ไม่ใส่ key/ข้อความดิบจาก API
+ * @param {unknown} err
+ * @returns {string}
+ */
+function reasonOf(err) {
+  const msg = String((err && err.message) || err || '');
+  const code = (msg.split('ตอบกลับ ')[1] || '').slice(0, 3);
+  if (code === '402' || /balance|credit|insufficient|quota/i.test(msg)) return 'เครดิตหมด';
+  if (code === '401' || code === '403') return 'API key ใช้ไม่ได้';
+  if (code === '429') return 'ติด rate limit';
+  if (msg.includes('ไม่ได้ตั้งค่า')) return msg.replace('ไม่ได้ตั้งค่า ', 'ยังไม่ได้ตั้งค่า ');
+  if (/timeout|aborted/i.test(msg)) return 'หมดเวลารอ';
+  return code ? `HTTP ${code}` : 'ข้อผิดพลาดชั่วคราว';
+}
+
+/** OpenAI ก่อน ล้มแล้วตกไป DeepSeek (ถ้ามี key) ล้มทั้งคู่ให้โยนสาเหตุรวม */
+const openaiWithFallback = {
+  async translate(text, languages) {
+    try {
+      return await openaiTranslate.translate(text, languages);
+    } catch (first) {
+      console.error('OpenAI แปลไม่สำเร็จ ลอง DeepSeek:', reasonOf(first));
+      if (!deepseekTranslate.hasKey()) {
+        const err = new Error(`OpenAI: ${reasonOf(first)}`);
+        err.reason = err.message;
+        throw err;
+      }
+      try {
+        return await deepseekTranslate.translate(text, languages);
+      } catch (second) {
+        const err = new Error(`OpenAI: ${reasonOf(first)}; DeepSeek: ${reasonOf(second)}`);
+        err.reason = err.message;
+        throw err;
+      }
+    }
+  },
+};
 
 const PROVIDERS = {
   google: googleTranslate,
-  openai: openaiTranslate,
+  openai: openaiWithFallback,
 };
 
 const DEFAULT_PROVIDER = 'google';
@@ -51,6 +91,7 @@ function translateText(text, { source, target, via }) {
 }
 
 module.exports = {
+  reasonOf,
   translateText,
   translatorFor,
   providerNameFor,

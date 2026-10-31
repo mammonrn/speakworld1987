@@ -49,6 +49,14 @@ const TARGET_LANGUAGES = [
     provider: 'google',
   },
   {
+    code: 'yue',
+    label: '🇭🇰 กวางตุ้ง (ฮ่องกง)',
+    speechCode: 'yue-Hant-HK',
+    englishName:
+      'Hong Kong Cantonese written in Traditional Chinese, colloquial spoken style (e.g. 唔該, 係, 嘅)',
+    provider: 'openai',
+  },
+  {
     code: 'vi',
     label: '🇻🇳 เวียดนาม',
     speechCode: 'vi-VN',

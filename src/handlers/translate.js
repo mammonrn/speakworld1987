@@ -3,7 +3,7 @@
 const { SOURCE_LANGUAGE, languageName, isSameLanguage } = require('../languages');
 const { getLanguage } = require('../store/language-store');
 const { transcribe } = require('../services/googleSpeech');
-const { translateText, detectLanguage, providerNameFor } = require('../services/translate');
+const { translateText, detectLanguage, providerNameFor, reasonOf } = require('../services/translate');
 const { annotate } = require('../services/pinyin');
 const { recordSpeech, recordTranslation } = require('../services/usage-tracker');
 const { withRetry } = require('../services/http');
@@ -12,6 +12,13 @@ const { displayName } = require('../users');
 
 const ERROR_MESSAGE = 'ขออภัย เกิดข้อผิดพลาดในการแปล ลองใหม่อีกครั้ง';
 const DOWNLOAD_TIMEOUT_MS = 30000;
+
+/** ข้อความแจ้งผู้ใช้เมื่อล้ม: ข้อความเดิม + สาเหตุย่อ (ห้ามเงียบ ห้ามมี key) */
+function errorReply(err) {
+  const reason = (err && err.reason) || reasonOf(err);
+  return `${ERROR_MESSAGE}
+สาเหตุ: ${reason}`;
+}
 
 /**
  * ดาวน์โหลดไฟล์เสียงจากเซิร์ฟเวอร์ของ Telegram
@@ -140,7 +147,7 @@ function register(bot) {
       await translateAndReply(ctx, text, targetLanguage, language, true);
     } catch (err) {
       console.error('แปลข้อความเสียงไม่สำเร็จ:', err);
-      await ctx.reply(ERROR_MESSAGE);
+      await ctx.reply(errorReply(err));
     } finally {
       stopTyping();
     }
@@ -160,7 +167,7 @@ function register(bot) {
       await translateAndReply(ctx, ctx.message.text, targetLanguage, detected, false);
     } catch (err) {
       console.error('แปลข้อความไม่สำเร็จ:', err);
-      await ctx.reply(ERROR_MESSAGE);
+      await ctx.reply(errorReply(err));
     }
   });
 }

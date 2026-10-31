@@ -381,7 +381,8 @@ test('ถอดเสียงล้มเหลว: ตอบข้อควา
 
   try {
     await onVoice(failing);
-    assert.deepEqual(failing.replies, [ERROR_MESSAGE]);
+    assert.equal(failing.replies.length, 1);
+    assert.ok(failing.replies[0].startsWith(ERROR_MESSAGE));
     assert.deepEqual(failing.chatActions, ['typing']);
   } finally {
     fetchMock.restore();
@@ -397,7 +398,8 @@ test('การแปลล้มเหลวหลังถอดเสีย�
     routes: [[OPENAI_URL, () => jsonResponse({ error: 'server error' }, 500)]],
   });
 
-  assert.deepEqual(ctx.replies, [ERROR_MESSAGE]);
+  assert.equal(ctx.replies.length, 1);
+    assert.ok(ctx.replies[0].startsWith(ERROR_MESSAGE));
 });
 
 test('ตรวจภาษาข้อความพิมพ์ล้มเหลว ก็ตอบข้อความผิดพลาดเดิม', async () => {
@@ -408,7 +410,8 @@ test('ตรวจภาษาข้อความพิมพ์ล้มเ�
 
   try {
     await onText(ctx, async () => {});
-    assert.deepEqual(ctx.replies, [ERROR_MESSAGE]);
+    assert.equal(ctx.replies.length, 1);
+    assert.ok(ctx.replies[0].startsWith(ERROR_MESSAGE));
   } finally {
     fetchMock.restore();
     restoreLog();
